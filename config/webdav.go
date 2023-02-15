@@ -25,7 +25,7 @@ func init() {
 	}
 	webdav["base_path"] = "." // for "file" filesystem
 	webdav["supported_folder_depth"] = 10
-	webdav["base_url"] = "/webdav"
+	webdav["base_url"] = Env("WEBDAV_BASE_URL", "/webdav")
 	webdav["memory_upload_mode"] = Env("MEMORY_UPLOAD_MODE", false) // If the host has a large memory, then set to `true` could improve upload performance.
 
 	webdav["accounts"] = gin.Accounts{

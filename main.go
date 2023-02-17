@@ -2,11 +2,17 @@ package main
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
+	"crypto/tls"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/gin-gonic/gin"
+
+	"totoval/bootstrap"
+	"totoval/resources/views"
+	"totoval/routes"
 
 	c "github.com/totoval/framework/config"
 	"github.com/totoval/framework/graceful"
@@ -16,9 +22,6 @@ import (
 	"github.com/totoval/framework/http/middleware"
 	"github.com/totoval/framework/request"
 	"github.com/totoval/framework/sentry"
-	"totoval/bootstrap"
-	"totoval/resources/views"
-	"totoval/routes"
 )
 
 func init() {
@@ -76,16 +79,30 @@ func httpServe(ctx context.Context) {
 
 	views.Initialize(r)
 
+	cfg := &tls.Config{
+		MinVersion:               tls.VersionTLS12,
+		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		PreferServerCipherSuites: true,
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		},
+	}
+
 	s := &http.Server{
 		Addr:           ":" + c.GetString("app.port"),
 		Handler:        r,
 		ReadTimeout:    zone.Duration(c.GetInt64("app.read_timeout_seconds")) * zone.Second,
 		WriteTimeout:   zone.Duration(c.GetInt64("app.write_timeout_seconds")) * zone.Second,
+		TLSConfig:      cfg,
 		MaxHeaderBytes: 1 << 20,
 	}
 
 	go func() {
-		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := s.ListenAndServeTLS("./ssl/server.crt", "./ssl/server.key"); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err.Error())
 		}
 	}()
